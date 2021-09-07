@@ -60,7 +60,27 @@ export function IndexedValues(values) {
   };
 }
 
-const classMethod = method => (ref, targets) => {
+/**
+ * @template Serializable
+ * @param {Serializable} ref The first object of the callback.
+ * @return {Serializable}
+ */
+
+/**
+ * @typedef {Object} MainTargetPaths a literal object with `{main, target}` fields.
+ * @property {string} main the path where to find the source of values, used in all targets.
+ * @property {string} target the path where to find all targets that contain values from the `main` list.
+ */
+
+/**
+ * Given a reference object either to stringify or parse, and one or more `main` / `target` entries,
+ * automatically find and transform all targets into serializable, or original, entries.
+ * @param {string} method either `from` or `fromJSON`, used to transform all targets.
+ * @param {Serializable} ref the object to serialize.
+ * @param {MainTargetPaths|MainTargetPaths[]} targets the object with `main` and `target` path to revive.
+ * @returns {Serializable}
+ */
+const upgradeVia = (method, ref, targets) => {
   for (const {main, target} of [].concat(targets)) {
     const list = main.split('.').reduce((o, k) => o[k], ref);
     upgradeTargets(IndexedValues(list), method, ref, target.split('.'));
@@ -68,6 +88,14 @@ const classMethod = method => (ref, targets) => {
   return ref;
 };
 
+/**
+ * Crawl from a root all fields defined in `path`, recursively looping through arrays,
+ * if found during such crawling.
+ * @param {AsJSONIndexes} Array the class returned via IndexedValues.
+ * @param {string} method either `from` or `fromJSON`.
+ * @param {object} root the object to serialize.
+ * @param {string[]} path a list of fields to crawl to reach all targets.
+ */
 const upgradeTargets = (Array, method, root, path) => {
   for (let i = 0, {length} = path; i < length; i++) {
     if ((i + 1) === length) {
@@ -90,5 +118,19 @@ const upgradeTargets = (Array, method, root, path) => {
   }
 };
 
-export const fromJSON = classMethod('fromJSON');
-export const toJSON = classMethod('from');
+/**
+ * Given a `JSON.parse(...)` result, revive indexed targets via the main Array.
+ * @param {Serializable} ref the object to serialize.
+ * @param {MainTargetPaths|MainTargetPaths[]} targets the object with `main` and `target` path to revive.
+ * @returns {Serializable}
+ */
+export const fromJSON = (ref, targets) => upgradeVia('fromJSON', ref, targets);
+
+/**
+ * Given an object to `JSON.stringify(...)`, augment all targets in a way that,
+ * once serialized, will produce indexed arrays through the targets' `main` Array's path.
+ * @param {Serializable} ref the object to serialize.
+ * @param {MainTargetPaths|MainTargetPaths[]} targets the object with `main` and `target` path to serialize.
+ * @returns {Serializable}
+ */
+export const toJSON = (ref, targets) => upgradeVia('from', ref, targets);
