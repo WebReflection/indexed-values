@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IndexedValues</title>
+  <script type="module">
+    import {IndexedValues} from '../esm/index.js';
+
+    console.log('');
+
+    const useIndexes = /\bindexes\b/.test(location.search);
+    console.log(useIndexes ? '%cAs indexes' : '%cAs strings', 'font-weight:bold');
+
+    console.time('total');
+
+    const set = new Set;
+    const related = [];
+
+    for (let i = 0; i < 0xFFFF; i++)
+      set.add(String(1 + Math.random()));
+
+    const strings = [...set];
+    const {length} = strings;
+
+    console.time('bootstrap');
+    const Values = useIndexes ? IndexedValues(strings) : Array;
+    console.timeEnd('bootstrap');
+
+    console.time('entries');
+    for (let i = 0; i < 0xFFF; i++) {
+      const list = new Set;
+      let j = 1 + Math.floor((Math.random() * 0xFF));
+      while (j--)
+        list.add(strings[Math.floor(Math.random() * length)]);
+      related.push(Values.from(list));
+    }
+    console.timeEnd('entries');
+
+    self.data = {strings, related};
+
+    console.time('stringify');
+    data.json = JSON.stringify(data);
+    console.timeEnd('stringify');
+    console.log('JSON size', data.json.length);
+
+    console.time('parse');
+    data.json = JSON.parse(data.json);
+    if (useIndexes) {
+      const {strings, related} = data.json;
+      related.forEach((list, i) => {
+        related[i] = Values.fromJSON(list);
+      });
+    }
+    console.timeEnd('parse');
+
+    console.timeEnd('total');
+
+    function compare(value, i) { return this[i] === value; }
+    console.assert(strings.every(compare, data.json.strings), 'strings error');
+    related.forEach((list, i) => {
+      console.assert(list.every(compare, data.json.related[i]), 'related error');
+    });
+
+    console.log('');
+
+  </script>
+</head>
+</html>
