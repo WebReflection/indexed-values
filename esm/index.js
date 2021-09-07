@@ -59,3 +59,30 @@ export function IndexedValues(values) {
     }
   };
 }
+
+const classMethod = method => (ref, targets) => {
+  for (const {main, target} of [].concat(targets)) {
+    const list = main.split('.').reduce((o, k) => o[k], ref);
+    transformMethod(IndexedValues(list), method, ref, target.split('.'));
+  }
+  return ref;
+};
+
+const transformMethod = (Array, method, root, path) => {
+  for (let i = 0, {length} = path; i < length; i++) {
+    const next = root[path[i]];
+    if ((i + 1) === length)
+      root[path[i]] = Array[method](next);
+    else if (Array.isArray(next)) {
+      const nested = path.slice(i + 1);
+      for (const entry of next)
+        transformMethod(Array, method, entry, nested);
+      break;
+    }
+    else
+      root = next;
+  }
+};
+
+export const fromJSON = classMethod('fromJSON');
+export const toJSON = classMethod('from');

@@ -1,7 +1,7 @@
-const {IndexedValues} = require('../cjs');
+const {IndexedValues, fromJSON, toJSON} = require('../cjs');
 
-const assert = (a, b) => {
-  console.assert(a === b, `expected ${a}, got ${b} instead`);
+const assert = (a, b, m = `\n \x1b[1mexpected\x1b[0m ${a}\n \x1b[1mreceived\x1b[0m ${b}`) => {
+  console.assert(a === b, m);
   if (a !== b)
     process.exit(1);
 };
@@ -34,3 +34,26 @@ assert(bb.join(','), [chars[1]].join(','));
 
 assert(JSON.stringify(aa), '[0,2]');
 assert(JSON.stringify(bb), '[1]');
+
+const complex = {
+  some: {chars},
+  nested: {
+    targets: [
+      {chars: ['a', 'c']},
+      {chars: ['b']}
+    ]
+  }
+};
+
+const targets = {
+  main: 'some.chars',
+  target: 'nested.targets.chars'
+};
+
+const asJSON = JSON.stringify(toJSON(complex, targets));
+
+assert(asJSON, '{"some":{"chars":["a","b","c"]},"nested":{"targets":[{"chars":[0,2]},{"chars":[1]}]}}');
+assert(
+  fromJSON(JSON.parse(asJSON), targets).nested.targets.map(({chars}) => `[${chars.join(',')}]`).join(','),
+  '[a,c],[b]'
+);
