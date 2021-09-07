@@ -65,24 +65,30 @@ exports.IndexedValues = IndexedValues
 const classMethod = method => (ref, targets) => {
   for (const {main, target} of [].concat(targets)) {
     const list = main.split('.').reduce((o, k) => o[k], ref);
-    transformMethod(IndexedValues(list), method, ref, target.split('.'));
+    upgradeTargets(IndexedValues(list), method, ref, target.split('.'));
   }
   return ref;
 };
 
-const transformMethod = (Array, method, root, path) => {
+const upgradeTargets = (Array, method, root, path) => {
   for (let i = 0, {length} = path; i < length; i++) {
-    const next = root[path[i]];
-    if ((i + 1) === length)
-      root[path[i]] = Array[method](next);
-    else if (Array.isArray(next)) {
+    if ((i + 1) === length) {
+      if (path[i].endsWith('[]')) {
+        root = root[path[i].slice(0, -2)];
+        for (let j = 0; j < root.length; j++)
+          root[j] = Array[method](root[j]);
+      }
+      else
+        root[path[i]] = Array[method](root[path[i]]);
+    }
+    else if (Array.isArray(root[path[i]])) {
       const nested = path.slice(i + 1);
-      for (const entry of next)
-        transformMethod(Array, method, entry, nested);
+      for (const entry of root[path[i]])
+        upgradeTargets(Array, method, entry, nested);
       break;
     }
     else
-      root = next;
+      root = root[path[i]];
   }
 };
 
