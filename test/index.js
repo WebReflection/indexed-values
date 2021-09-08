@@ -1,4 +1,5 @@
 const {IndexedValues, fromJSON, toJSON} = require('../cjs');
+const {packCopy: pack, unpackCopy: unpack} = require('../cjs/pack');
 
 const assert = (a, b, m = `\n \x1b[1mexpected\x1b[0m ${b}\n \x1b[1mreceived\x1b[0m ${a}`) => {
   console.assert(a === b, m);
@@ -50,6 +51,12 @@ let targets = {
   target: 'nested.targets.chars'
 };
 
+let t = ['nested.targets.chars'];
+let packed = pack(t, complex);
+let unpacked = unpack(t, packed);
+
+assert(JSON.stringify(unpacked), JSON.stringify(complex));
+
 const asJSON = JSON.stringify(toJSON(complex, targets));
 
 assert(asJSON, '{"some":{"chars":["a","b","c"]},"nested":{"targets":[{"chars":[0,2]},{"chars":[1]}]}}');
@@ -70,6 +77,12 @@ targets = {
   main: 'chars',
   target: 'targets[]'
 };
+
+t = ['chars', 'targets[]'];
+packed = pack(t, complex);
+unpacked = unpack(t, packed);
+
+assert(JSON.stringify(unpacked), JSON.stringify(complex));
 
 assert(
   JSON.stringify(toJSON(complex, targets)),
