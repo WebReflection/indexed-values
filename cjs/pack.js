@@ -1,14 +1,22 @@
 'use strict';
 /*! (c) Andrea Giammarchi - ISC */
 
-const {isArray} = Array;
+const LIST = '[]';
+const EMPTY = '';
+const OPTIONAL = '?';
 
-// this utility just copy arrays and objects but nothing else
+const {iterator} = Symbol;
+
+// copy objects/arrays and transform iterables in arrays
 const copy = input => {
-  if (typeof input === 'object') {
-    if (isArray(input))
-      input = input.map(copy);
-    else if (input !== null) {
+  if (typeof input === 'object' && input) {
+    if (iterator in input) {
+      const values = [];
+      for (const value of input)
+        values.push(copy(value));
+      input = values;
+    }
+    else {
       const output = {};
       for (const key in input)
         output[key] = copy(input[key]);
@@ -23,87 +31,100 @@ const copy = input => {
  * Invoke the callback at the end with a unique Map index/id, the field name,
  * and the value of such field. If the callback returns a new value, it
  * overrides the original field with it.
- * @param {string|string[]} targets paths to crawl through the object.
+ * @param {string[]} targets paths to crawl through the object.
  * @param {function} callback a `callback(uid, field, value)` function, invoked per each target.
  * @param {Object} object a generic object literal to crawl via all targets.
  */
 const crawlTargets = (targets, callback, object) => {
-  for (let
-    entries = [].concat(targets),
-    i = 0, {length} = entries;
-    i < length; i++
-  )
-    crawlTarget(callback, i, object, entries[i].split('.'));
+  let i = 0;
+  const re = /(\?|\[\])?\./g;
+  for (const target of targets) {
+    const path = [];
+    let j = 0;
+    let match = null;
+    let optional = EMPTY;
+    while (match = re.exec(target + '.')) {
+      const {0: {length}, 1: hint, index} = match;
+      if (index - j)
+        path.push([target.slice(j, index), hint || EMPTY]);
+      else
+        optional = hint;
+      j = index + length;
+    }
+    crawlTarget(callback, i++, optional, object, path);
+  }
 };
 exports.crawlTargets = crawlTargets;
 
-const crawlTarget = (callback, index, object, path) => {
-  for (let i = 0, {length} = path; i < length; i++) {
-    const field = path[i];
-    if ((i + 1) === length) {
-      const real = field.endsWith('[]') ? field.slice(0, -2) : field;
-      const override = callback(index, field, object[real]);
-      if (typeof override !== 'undefined')
-        object[real] = override;
+const crawlTarget = (callback, id, optional, object, path) => {
+  for (let {length} = path, i = 0; i < length;) {
+    const [field, hint] = path[i++];
+    if (object[field] == null) {
+      if (optional === OPTIONAL)
+        break;
+      throw new Error('invalid field ' + field);
     }
-    else if (isArray(object[field])) {
-      for (let
-        nested = path.slice(i + 1),
-        entries = object[field],
-        j = 0, {length} = entries;
-        j < length; j++
-      )
-        crawlTarget(callback, index, entries[j], nested);
+    if (i === length) {
+      const info = {id, field, hint, optional: optional === OPTIONAL};
+      const override = callback(info, object[field]);
+      if (typeof override !== 'undefined')
+        object[field] = override;
       break;
     }
-    else
-      object = object[field];
+    optional = hint;
+    object = object[field];
+    if (hint === LIST || iterator in object) {
+      const sub = path.slice(i);
+      for (const value of object)
+        crawlTarget(callback, id, optional, value, sub);
+      break;
+    }
   }
 };
 
 /**
- * @typedef {Object} PackedObject a literal object with `{_, $}` fields.
- * @property {array[]} _ all targets values as unique array.
- * @property {Object} $ an object where paths represent indexes of each `_` array value.
+ * @typedef {[array[], object]} PackedResult an array with values as first entry,
+ * and the optimized object as second one.
  */
 
 /**
  * Given one or more target paths, returns a specialized object that can be
  * unpacked later on, through the indexed values grouped as unique IDs.
  * Please note: this method **mutates** the entry `object`.
- * @param {string|string[]} targets paths to transform as indexed values.
- * @param {Object} object a JSON serializable object.
- * @returns {PackedObject}
+ * @param {string[]} targets paths to transform as indexed values.
+ * @param {Array|Object} object a JSON serializable object.
+ * @returns {PackedResult}
  */
 const packDirect = (targets, object) => {
   const _ = new Map;
-  const callback = (id, field, values) => {
-    if (field.endsWith('[]'))
-      return values.map(callback.bind(null, id, ''));
-
+  const callback = ({id, hint}, target) => {
     if (!_.has(id))
       _.set(id, new Map);
-
     const map = _.get(id);
-    const indexes = [];
-    for (let i = 0, {length} = values; i < length; i++) {
-      if (!map.has(values[i]))
-        map.set(values[i], map.size);
-      indexes.push(map.get(values[i]));
+    const result = [];
+    const all = hint === LIST;
+    for (const values of all ? target : [target]) {
+      const indexes = [];
+      for (const value of values) {
+        if (!map.has(value))
+          map.set(value, map.size);
+        indexes.push(map.get(value));
+      }
+      result.push([indexes, id]);
     }
-    return [indexes, id];
+    return all ? result : result.shift();
   };
   crawlTargets(targets, callback, object);
-  return {_: [..._.values()].map(_ => [..._.keys()]), $: object};
+  return [[..._.values()].map(_ => [..._.keys()]), object];
 };
 exports.packDirect = packDirect;
 
 /**
  * Given one or more target paths, returns a specialized object that can be
  * unpacked later on, through the indexed values grouped as unique IDs.
- * @param {string|string[]} targets paths to transform as indexed values.
- * @param {Object} object a JSON serializable object.
- * @returns {PackedObject}
+ * @param {string[]} targets paths to transform as indexed values.
+ * @param {Array|Object} object a JSON serializable object.
+ * @returns {PackedResult}
  */
 const packCopy = (targets, object) => packDirect(targets, copy(object));
 exports.packCopy = packCopy;
@@ -112,17 +133,17 @@ exports.packCopy = packCopy;
  * Given the same `targets` used to pack an object, returns the original object with
  * indexed values revived as original values.
  * Please note: this method **mutates** the passed `object` within the `$` field.
- * @param {string|string[]} targets paths to reach and revive indexes as values.
- * @param {PackedObject} object a previously packed object with indexes as paths values. 
- * @returns {Object}
+ * @param {string[]} targets paths to reach and revive indexes as values.
+ * @param {PackedResult} array
+ * @returns {Array|Object}
  */
-const unpackDirect = (targets, {_, $}) => {
-  const callback = (id, field, values) => {
-    if (field.endsWith('[]'))
-      return values.map(callback.bind(null, id, ''));
-
-    const [indexes, index] = values;
-    return indexes.map(_[index].get, _[index]);
+const unpackDirect = (targets, [_, $]) => {
+  const callback = ({hint}, target) => {
+    const result = [];
+    const all = hint === LIST;
+    for (const [indexes, index] of all ? target : [target])
+      result.push(indexes.map(_[index].get, _[index]));
+    return all ? result : result.shift();
   };
   _ = _.map(indexes => indexes.reduce((map, v, i) => map.set(i, v), new Map));
   crawlTargets(targets, callback, $);
@@ -133,9 +154,9 @@ exports.unpackDirect = unpackDirect;
 /**
  * Given the same `targets` used to pack an object, returns a copy of the original object
  * with indexed values revived as original values.
- * @param {string|string[]} targets paths to reach and revive indexes as values.
- * @param {PackedObject} object a previously packed object with indexes as paths values. 
- * @returns {Object}
+ * @param {string[]} targets paths to reach and revive indexes as values.
+ * @param {PackedResult} array
+ * @returns {Array|Object}
  */
-const unpackCopy = (targets, {_, $}) => unpackDirect(targets, {_, $: copy($)});
+const unpackCopy = (targets, [_, $]) => unpackDirect(targets, [_, copy($)]);
 exports.unpackCopy = unpackCopy;

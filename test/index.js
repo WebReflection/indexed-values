@@ -51,7 +51,7 @@ let targets = {
   target: 'nested.targets.chars'
 };
 
-let t = ['nested.targets.chars'];
+let t = ['.nested?.targets[].chars'];
 let packed = pack(t, complex);
 let unpacked = unpack(t, packed);
 
@@ -88,3 +88,33 @@ assert(
   JSON.stringify(toJSON(complex, targets)),
   '{"chars":["a","b","c"],"targets":[[0,2],[1]]}'
 );
+
+complex = {
+  targets: [
+    {values: ['a', 'c']},
+    {values: ['b']},
+  ]
+};
+
+t = ['.targets?.tests'];
+packed = pack(t, complex);
+unpacked = unpack(t, packed);
+
+assert(JSON.stringify(unpacked), JSON.stringify(complex));
+
+try {
+  pack(['.targets.tests'], complex);
+}
+catch ({message}) {
+  assert(message, 'invalid field tests');
+}
+
+complex = {
+  targets: ['a', 'c']
+};
+
+t = ['.targets'];
+packed = pack(t, complex);
+unpacked = unpack(t, packed);
+
+assert(JSON.stringify(unpacked), JSON.stringify(complex));
