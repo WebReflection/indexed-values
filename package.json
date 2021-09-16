@@ -38,5 +38,8 @@
   "bugs": {
     "url": "https://github.com/WebReflection/indexed-values/issues"
   },
-  "homepage": "https://github.com/WebReflection/indexed-values#readme"
+  "homepage": "https://github.com/WebReflection/indexed-values#readme",
+  "dependencies": {
+    "path-crawler": "^0.1.0"
+  }
 }
