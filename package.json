@@ -1,7 +1,7 @@
 {
   "name": "indexed-values",
   "description": "A JSON de/serialization utiity to boost performance and reduce memory consumption",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "main": "./cjs/index.js",
   "scripts": {
     "build": "npm run cjs && npm run test",
