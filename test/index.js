@@ -1,5 +1,4 @@
-const {IndexedValues, fromJSON, toJSON} = require('../cjs');
-const {packCopy: pack, unpackCopy: unpack} = require('../cjs/pack');
+const {IndexedValues} = require('../cjs');
 
 const assert = (a, b, m = `\n \x1b[1mexpected\x1b[0m ${b}\n \x1b[1mreceived\x1b[0m ${a}`) => {
   console.assert(a === b, m);
@@ -7,114 +6,63 @@ const assert = (a, b, m = `\n \x1b[1mexpected\x1b[0m ${b}\n \x1b[1mreceived\x1b[
     process.exit(1);
 };
 
-const chars = ['a', 'b', 'c'];
-const main = new Set(chars);
+const iv = new IndexedValues(['a', 'b', 'c']);
+const s1 = iv.bindValues(['a', 'c']);
+const s2 = iv.bindValues(['b']);
+const s3 = iv.bindIndexes([0, 1]);
+const m1 = iv.mapKeys([['a', 'letter a'], ['b', 'letter b']]);
 
-const MainArray = IndexedValues(main);
+assert([...iv].join(','), 'a,b,c');
+assert([...iv.keys()].join(','), '0,1,2');
+assert([...iv.values()].join(','), 'a,b,c');
+assert([...iv.entries()].join(','), '0,a,1,b,2,c');
+assert(iv.has('e'), false);
+assert(iv.add('d').has('d'), true);
 
-const a = MainArray.from([chars[0], chars[2]]);
-const b = MainArray.from([chars[1]]);
+assert(s2.has('b'), true);
+assert(s2.has('c'), false);
+assert(s2.add('c'), s2);
+assert(s2.has('c'), true);
 
-assert(JSON.stringify(a), '[0,2]');
-assert(JSON.stringify(b), '[1]');
+assert(iv.has('e'), false);
+s2.add('e');
+assert(iv.has('e'), true);
+assert([...iv].join(','), 'a,b,c,d,e');
+assert([...s1].join(','), '0,2');
+assert([...s1.values()].join(','), 'a,c');
+assert([...s2.values()].join(','), 'b,c,e');
+assert([...s3.values()].join(','), 'a,b');
+assert(s2.delete('c'), true);
+assert(s2.delete('c'), false);
+assert([...iv].join(','), 'a,b,c,d,e');
+assert([...s2.values()].join(','), 'b,e');
+assert([...s2].join(','), '1,4');
 
-const parsed_a = JSON.parse(JSON.stringify(a));
-const parsed_b = JSON.parse(JSON.stringify(b));
-
-assert(parsed_a.join(','), '0,2');
-assert(parsed_b.join(','), '1');
-
-assert(JSON.stringify(parsed_a), '[0,2]');
-assert(JSON.stringify(parsed_b), '[1]');
-
-const aa = MainArray.fromJSON(parsed_a);
-const bb = MainArray.fromJSON(parsed_b);
-
-assert(aa.join(','), [chars[0], chars[2]].join(','));
-assert(bb.join(','), [chars[1]].join(','));
-
-assert(JSON.stringify(aa), '[0,2]');
-assert(JSON.stringify(bb), '[1]');
-
-let complex = {
-  some: {chars},
-  nested: {
-    targets: [
-      {chars: ['a', 'c']},
-      {chars: ['b']}
-    ]
-  }
-};
-
-let targets = {
-  main: 'some.chars',
-  target: 'nested.targets.chars'
-};
-
-let t = ['.nested?.targets[].chars'];
-let packed = pack(t, complex);
-let unpacked = unpack(t, packed);
-
-assert(JSON.stringify(unpacked), JSON.stringify(complex));
-
-const asJSON = JSON.stringify(toJSON(complex, targets));
-
-assert(asJSON, '{"some":{"chars":["a","b","c"]},"nested":{"targets":[{"chars":[0,2]},{"chars":[1]}]}}');
-assert(
-  fromJSON(JSON.parse(asJSON), targets).nested.targets.map(({chars}) => `[${chars.join(',')}]`).join(','),
-  '[a,c],[b]'
-);
-
-complex = {
-  chars,
-  targets: [
-    ['a', 'c'],
-    ['b']
-  ]
-};
-
-targets = {
-  main: 'chars',
-  target: 'targets[]'
-};
-
-t = ['chars', 'targets[]'];
-packed = pack(t, complex);
-unpacked = unpack(t, packed);
-
-assert(JSON.stringify(unpacked), JSON.stringify(complex));
-
-assert(
-  JSON.stringify(toJSON(complex, targets)),
-  '{"chars":["a","b","c"],"targets":[[0,2],[1]]}'
-);
-
-complex = {
-  targets: [
-    {values: ['a', 'c']},
-    {values: ['b']},
-  ]
-};
-
-t = ['.targets?.tests'];
-packed = pack(t, complex);
-unpacked = unpack(t, packed);
-
-assert(JSON.stringify(unpacked), JSON.stringify(complex));
+assert(JSON.stringify(iv), '["a","b","c","d","e"]');
+assert(JSON.stringify(s2), '[1,4]');
 
 try {
-  pack(['.targets.tests'], complex);
+  assert(iv.delete('a'), null, 'delete is not allowed');
 }
-catch ({message}) {
-  assert(message, 'invalid field tests');
+catch (ok) {}
+
+try {
+  assert(iv.clear(), true, 'delete is not allowed');
 }
+catch (ok) {}
 
-complex = {
-  targets: ['a', 'c']
-};
-
-t = ['.targets'];
-packed = pack(t, complex);
-unpacked = unpack(t, packed);
-
-assert(JSON.stringify(unpacked), JSON.stringify(complex));
+assert([...m1].join(','), 'a,letter a,b,letter b');
+assert(m1.has('a'), true);
+assert(m1.has('c'), false);
+assert(m1.get('a'), 'letter a');
+assert(m1.delete('a'), true);
+assert(m1.delete('a'), false);
+assert(m1.get('a'), void 0);
+assert(m1.get('f'), void 0);
+assert(iv.has('f'), false);
+assert(m1.set('f', 'letter f').has('f'), true);
+assert(iv.has('f'), true);
+assert([...m1].join(','), 'b,letter b,f,letter f');
+assert([...m1.keys()].join(','), 'a,b,c,d,e,f');
+assert(JSON.stringify(m1), '[[1,"letter b"],[5,"letter f"]]');
+assert(JSON.stringify(iv.mapEntries(m1.toJSON())), '[[1,"letter b"],[5,"letter f"]]');

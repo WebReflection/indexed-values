@@ -1,140 +1,163 @@
 'use strict';
 /*! (c) Andrea Giammarchi - ISC */
 
-/**
- * Transform a list of values, or indexes, into
- * a list of values, or indexes, counterpart.
- * @param {Array|AsJSONIndexes} self
- * @param {any[]} values
- * @param {Map} map
- * @returns {Array|AsJSONIndexes}
- */
-const transform = (self, values, map) => {
-  for (const value of values)
-    self.push(map.get(value));
-  return self;
+const {set} = Map.prototype;
+const {iterator} = Symbol;
+
+const empty = new Set;
+
+const keys = new WeakMap;
+
+const getKeys = map => {
+  if (!keys.has(map))
+    keys.set(map, [...map.keys()]);
+  return keys.get(map);
 };
 
-/**
- * Returns a new Array like class that will provide JSON
- * serialization and deserialization via indexes.
- * @param {Array|Set} values a list of values to refer by indexes.
- * @returns {AsJSONIndexes}
- */
-function IndexedValues(values) {
-  const asIndexes = new Map;
-  const asValues = new Map;
+class Keys extends Map {
+  constructor(_) {
+    super()._ = _;
+  }
+  delete(key) {
+    const {_} = this._;
+    return _.has(key) && super.delete(_.get(key));
+  }
+  get(key) {
+    const {_} = this._;
+    return _.has(key) ? super.get(_.get(key)) : void 0;
+  }
+  has(key) {
+    const {_} = this._;
+    return _.has(key) && super.has(_.get(key));
+  }
+  set(key, value) {
+    return super.set(this._.add(key)._.get(key), value);
+  }
+  toJSON() { return [...super[iterator]()]; }
+  *keys() { return yield *this._._.keys(); }
+  *[iterator]() {
+    const {_} = this._;
+    for (const [key, value] of super[iterator]())
+      yield [getKeys(_)[key], value];
+  }
+}
+exports.Keys = Keys
 
-  // map indexes/values by reference once
-  // which *should* not increase in any
-  // meaningful way, the HEAP consumption,
-  // except for the generated, numeric, indexes
-  let i = 0;
-  for (const value of values) {
-    asIndexes.set(value, i);
-    asValues.set(i++, value);
+class Indexes extends Set {
+  constructor(_) {
+    super()._ = _;
+  }
+  add(value) {
+    return super.add(this._.add(value)._.get(value));
+  }
+  has(value) {
+    const {_} = this._;
+    return _.has(value) && super.has(_.get(value));
+  }
+  delete(value) {
+    const {_} = this._;
+    return _.has(value) && super.delete(_.get(value));
+  }
+  toJSON() { return [...this]; }
+  *values() {
+    const {_} = this._;
+    for (const index of this)
+      yield getKeys(_)[index];
+  }
+}
+
+class IndexedValues extends Set {
+  /**
+   * Creates a Set where all values are stored as indexes, so that derived
+   * sets can also use indexes instead of references as storage.
+   * @param {any[]|Set<any>} values optional values to populate the Set
+   */
+  constructor(values = empty) {
+    super()._ = new Map;
+    for (const value of values)
+      this.add(value);
   }
 
-  // returns an Array like class that is capable of
-  // serializing, and de-serialize, re-mapping
-  // all known references by indexes
-  return class AsJSONIndexes extends Array {
-
-    /**
-     * Returns a new AsJSONIndexes array of values, given a list
-     * of indexes, derived from the initial values.
-     * @param {Array|Set} indexes a list of indexes related to the `values`.
-     * @returns {AsJSONIndexes}
-     */
-    static fromJSON(indexes) {
-      return transform(new this, indexes, asValues);
+  /**
+   * Returns a Set of indexes based on the Set it's generated from.
+   * All operations work through value, and adding a new value is also
+   * is reflected to the original set.
+   * @param {number[]|Set<number>} indexes optional values to bind directly
+   * @returns {Indexes}
+   */
+  bindIndexes(indexes = empty) {
+    const set = new Indexes(this);
+    for (const index of indexes) {
+      if (super.has(index))
+        super.add.call(set, index);
     }
+    return set;
+  }
 
-    /**
-     * Returns a new Array with all values mapped as indexes,
-     * derived from the initial values.
-     * @returns {Array}
-     */
-    toJSON() {
-      return transform([], this, asIndexes);
+  /**
+   * Returns a Set of indexes based on the Set it's generated from.
+   * All operations work through value, and adding a new value is also
+   * is reflected to the original set.
+   * @param {any[]|Set<any>} values optional values to bind directly
+   * @returns {Indexes}
+   */
+  bindValues(values = empty) {
+    const set = new Indexes(this);
+    for (const value of values)
+      set.add(value);
+    return set;
+  }
+
+  /**
+   * Returns a Map bound to this instance, where new keys will be
+   * reflected to the original set.
+   * @param {any[][]} entries a list of key/value pairs
+   * @returns 
+   */
+  mapKeys(entries = empty) {
+    const map = new Keys(this);
+    for (const [key, value] of entries)
+      map.set(key, value);
+    return map;
+  }
+
+  /**
+   * Returns a Map bound to this instance, where new keys will be
+   * reflected to the original set.
+   * This method should be used to revive some previously serialized map.
+   * @param {any[][]} entries a previously serialized index/value list.
+   * @returns 
+   */
+  mapEntries(entries = empty) {
+    const map = new Keys(this);
+    for (const [index, value] of entries)
+      set.call(map, index, value);
+    return map;
+  }
+
+  add(value) {
+    const {_} = this;
+    if (!_.has(value)) {
+      super.add(_.size);
+      keys.delete(_.set(value, _.size));
     }
-  };
+    return this;
+  }
+
+  has(value) {
+    return this._.has(value);
+  }
+
+  delete() { throw new Error('Unable to delete'); }
+  clear() { throw new Error('Unable to clear'); }
+
+  toJSON() { return [...this]; }
+  *entries() {
+    for (const [value, index] of this._)
+      yield [index, value];
+  }
+  *keys() { return yield *this._.values(); }
+  *values() { return yield *this._.keys(); }
+  *[iterator]() { return yield *this._.keys(); }
 }
 exports.IndexedValues = IndexedValues
-
-/**
- * @template Serializable
- * @param {Serializable} ref The first object of the callback.
- * @return {Serializable}
- */
-
-/**
- * @typedef {Object} MainTargetPaths a literal object with `{main, target}` fields.
- * @property {string} main the path where to find the source of values, used in all targets.
- * @property {string} target the path where to find all targets that contain values from the `main` list.
- */
-
-/**
- * Given a reference object either to stringify or parse, and one or more `main` / `target` entries,
- * automatically find and transform all targets into serializable, or original, entries.
- * @param {string} method either `from` or `fromJSON`, used to transform all targets.
- * @param {Serializable} ref the object to serialize.
- * @param {MainTargetPaths|MainTargetPaths[]} targets the object with `main` and `target` path to revive.
- * @returns {Serializable}
- */
-const upgradeVia = (method, ref, targets) => {
-  for (const {main, target} of [].concat(targets)) {
-    const list = main.split('.').reduce((o, k) => o[k], ref);
-    upgradeTargets(IndexedValues(list), method, ref, target.split('.'));
-  }
-  return ref;
-};
-
-/**
- * Crawl from a root all fields defined in `path`, recursively looping through arrays,
- * if found during such crawling.
- * @param {AsJSONIndexes} Array the class returned via IndexedValues.
- * @param {string} method either `from` or `fromJSON`.
- * @param {object} root the object to serialize.
- * @param {string[]} path a list of fields to crawl to reach all targets.
- */
-const upgradeTargets = (Array, method, root, path) => {
-  for (let i = 0, {length} = path; i < length; i++) {
-    if ((i + 1) === length) {
-      if (path[i].endsWith('[]')) {
-        root = root[path[i].slice(0, -2)];
-        for (let j = 0; j < root.length; j++)
-          root[j] = Array[method](root[j]);
-      }
-      else
-        root[path[i]] = Array[method](root[path[i]]);
-    }
-    else if (Array.isArray(root[path[i]])) {
-      const nested = path.slice(i + 1);
-      for (const entry of root[path[i]])
-        upgradeTargets(Array, method, entry, nested);
-      break;
-    }
-    else
-      root = root[path[i]];
-  }
-};
-
-/**
- * Given a `JSON.parse(...)` result, revive indexed targets via the main Array.
- * @param {Serializable} ref the object to serialize.
- * @param {MainTargetPaths|MainTargetPaths[]} targets the object with `main` and `target` path to revive.
- * @returns {Serializable}
- */
-const fromJSON = (ref, targets) => upgradeVia('fromJSON', ref, targets);
-exports.fromJSON = fromJSON;
-
-/**
- * Given an object to `JSON.stringify(...)`, augment all targets in a way that,
- * once serialized, will produce indexed arrays through the targets' `main` Array's path.
- * @param {Serializable} ref the object to serialize.
- * @param {MainTargetPaths|MainTargetPaths[]} targets the object with `main` and `target` path to serialize.
- * @returns {Serializable}
- */
-const toJSON = (ref, targets) => upgradeVia('from', ref, targets);
-exports.toJSON = toJSON;
