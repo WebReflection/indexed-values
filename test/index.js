@@ -12,10 +12,12 @@ const s2 = iv.bindValues(['b']);
 const s3 = iv.bindIndexes([0, 1]);
 const m1 = iv.mapKeys([['a', 'letter a'], ['b', 'letter b']]);
 
+assert(iv.asSet() instanceof IndexedValues, false);
+
 assert([...iv].join(','), 'a,b,c');
-assert([...iv.keys()].join(','), '0,1,2');
+assert([...iv.keys()].join(','), 'a,b,c');
 assert([...iv.values()].join(','), 'a,b,c');
-assert([...iv.entries()].join(','), '0,a,1,b,2,c');
+assert([...iv.entries()].join(','), 'a,a,b,b,c,c');
 assert(iv.has('e'), false);
 assert(iv.add('d').has('d'), true);
 

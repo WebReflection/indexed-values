@@ -175,12 +175,14 @@ export class IndexedValues extends Set {
   delete() { throw new Error('Unable to delete'); }
   clear() { throw new Error('Unable to clear'); }
 
+  asSet() { return new Set(this._.keys()); }
   toJSON() { return [...this]; }
+
   *entries() {
-    for (const [value, index] of this._)
-      yield [index, value];
+    for (const value of this._.keys())
+      yield [value, value];
   }
-  *keys() { return yield *this._.values(); }
+  *keys() { return yield *this._.keys(); }
   *values() { return yield *this._.keys(); }
   *[iterator]() { return yield *this._.keys(); }
 }

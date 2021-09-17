@@ -24,6 +24,7 @@ get('data').then(data => {
 });
 
 addEventListener('message', ({data}) => {
+  console.log(data.data);
   console.time('storing data');
   set('data', data).then(() => {
     console.timeEnd('storing data');
