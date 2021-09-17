@@ -66,3 +66,17 @@ assert([...m1].join(','), 'b,letter b,f,letter f');
 assert([...m1.keys()].join(','), 'a,b,c,d,e,f');
 assert(JSON.stringify(m1), '[[1,"letter b"],[5,"letter f"]]');
 assert(JSON.stringify(iv.mapEntries(m1.toJSON())), '[[1,"letter b"],[5,"letter f"]]');
+
+let realSet = iv.fromIndexes(new Set([...s2]));
+assert(realSet._ instanceof IndexedValues, true);
+assert([...realSet.values()].join(','), 'b,e');
+
+realSet = iv.fromIndexes([...s2]);
+assert(realSet._ instanceof IndexedValues, true);
+assert([...realSet.values()].join(','), 'b,e');
+
+let realMap = iv.fromEntries(new Map([...m1.entries()]));
+assert([...m1.entries()].join(','), [...realMap.entries()].join(','));
+
+realMap = iv.fromEntries([...m1.entries()]);
+assert([...m1.entries()].join(','), [...realMap.entries()].join(','));

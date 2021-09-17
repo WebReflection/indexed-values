@@ -1,5 +1,6 @@
 /*! (c) Andrea Giammarchi - ISC */
 
+const {setPrototypeOf} = Object;
 const {set} = Map.prototype;
 const {iterator} = Symbol;
 
@@ -65,6 +66,7 @@ class Indexes extends Set {
 }
 
 export class IndexedValues extends Set {
+
   /**
    * Creates a Set where all values are stored as indexes, so that derived
    * sets can also use indexes instead of references as storage.
@@ -131,6 +133,30 @@ export class IndexedValues extends Set {
     for (const [index, value] of entries)
       set.call(map, index, value);
     return map;
+  }
+
+  /**
+   * Fast upgrade to a generic revived, or posted, set of indexes.
+   * Note: this method mutates the prototype of the param, if it's a Set.
+   * @param {number[]|Set<number>} indexes a stored Set of indexes or an array of indexes.
+   * @returns 
+   */
+  fromIndexes(indexes) {
+    const set = indexes instanceof Set ? indexes : new Set(indexes);
+    set._ = this;
+    return setPrototypeOf(set, Indexes.prototype);
+  }
+
+  /**
+   * Fast upgrade to a generic revived, or posted, map of entries.
+   * Note: this method mutates the prototype of the param, if it's a Map.
+   * @param {any[][]} entries a stored map, or an array, of entries.
+   * @returns 
+   */
+  fromEntries(entries) {
+    const map = entries instanceof Map ? entries : new Map(entries);
+    map._ = this;
+    return setPrototypeOf(map, Keys.prototype);
   }
 
   add(value) {

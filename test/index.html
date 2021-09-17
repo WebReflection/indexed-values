@@ -64,8 +64,6 @@
     worker.addEventListener('message', event => {
       console.timeEnd('worker');
       console.timeEnd('total');
-      function compare(value, i) { return this[i] === value; }
-      console.assert(strings.every(compare, strings), 'strings error');
       console.log('');
       entries = strings = related = json = null;
       if (typeof gc === 'function')
