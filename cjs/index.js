@@ -177,7 +177,7 @@ class IndexedValues extends Set {
   delete() { throw new Error('Unable to delete'); }
   clear() { throw new Error('Unable to clear'); }
 
-  asSet() { return new Set(this._.keys()); }
+  valueOf() { return new Set(this._.keys()); }
   toJSON() { return [...this]; }
 
   *entries() {
