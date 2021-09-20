@@ -1,7 +1,7 @@
 {
   "name": "indexed-values",
   "description": "An ever growing Set based utility to optimize JSON, IndexedDB, or postMessage",
-  "version": "0.0.10",
+  "version": "0.1.0",
   "main": "./cjs/index.js",
   "scripts": {
     "build": "npm run cjs && npm run test",
