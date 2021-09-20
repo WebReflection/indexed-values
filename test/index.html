@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IndexedValues</title>
+  <script type="module">
+    import {IndexedValues} from '../esm/index.js';
+    class Serializable extends Set {
+      toJSON() { return [...this]; }
+    }
+
+    console.log('');
+
+    const useIndexes = /\bindexes\b/.test(location.search);
+    console.log(useIndexes ? '%cAs indexes' : '%cAs strings', 'font-weight:bold');
+
+    console.time('total');
+
+    console.time('bootstrap');
+    let strings = useIndexes ? new IndexedValues : new Serializable;
+    let related = [];
+    self.data = {strings, related};
+
+    for (let i = 0; i < 0xFFFF; i++)
+      strings.add(String(1 + Math.random()));
+
+    console.timeEnd('bootstrap');
+
+    let entries = [...strings];
+    const {length} = entries;
+
+    console.time('entries');
+    for (let i = 0; i < 0xFFF; i++) {
+      const list = useIndexes ? strings.bindValues() : new Serializable;
+      let j = 1 + Math.floor((Math.random() * 0xFF));
+      while (j--)
+        list.add(entries[Math.floor(Math.random() * length)]);
+      related.push(list);
+    }
+    console.timeEnd('entries');
+
+    console.time('stringify');
+    let json = JSON.stringify(data);
+    console.timeEnd('stringify');
+    console.log('JSON size', json.length);
+
+    console.time('parse');
+    json = JSON.parse(json);
+    ({related, strings} = json);
+    if (useIndexes) {
+      data.strings = new IndexedValues(strings);
+      data.related = related.map(list => data.strings.bindIndexes(list));
+    }
+    else {
+      data.strings = new Serializable(strings);
+      data.related = related.map(list => new Serializable(list));
+    }
+    console.timeEnd('parse');
+
+    console.time('worker');
+    const worker = new Worker('./worker.js', {type: 'module'});
+    worker.addEventListener('message', event => {
+      console.timeEnd('worker');
+      console.timeEnd('total');
+      console.log('');
+      entries = strings = related = json = null;
+      if (typeof gc === 'function')
+        gc();
+    });
+    strings = [...data.strings];
+    worker.postMessage({
+      strings,
+      useIndexes,
+      related: data.related.map(list => [...list])
+    });
+  </script>
+</head>
+</html>

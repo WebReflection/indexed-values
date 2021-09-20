@@ -1,0 +1,46 @@
+{
+  "name": "indexed-values",
+  "description": "An ever growing Set based utility to optimize JSON, IndexedDB, or postMessage",
+  "version": "0.0.10",
+  "main": "./cjs/index.js",
+  "scripts": {
+    "build": "npm run cjs && npm run test",
+    "cjs": "ascjs esm cjs",
+    "coverage": "c8 report --reporter=text-lcov > ./coverage/lcov.info",
+    "test": "c8 node test/index.js"
+  },
+  "keywords": [
+    "JSON",
+    "IndexedDB",
+    "postMessage",
+    "memory",
+    "performance"
+  ],
+  "author": "Andrea Giammarchi",
+  "license": "ISC",
+  "devDependencies": {
+    "ascjs": "^5.0.1",
+    "c8": "^7.8.0",
+    "coveralls": "^3.1.1"
+  },
+  "module": "./esm/index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./esm/index.js",
+      "default": "./cjs/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WebReflection/indexed-values.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WebReflection/indexed-values/issues"
+  },
+  "homepage": "https://github.com/WebReflection/indexed-values#readme",
+  "dependencies": {
+    "path-crawler": "^0.1.0"
+  }
+}
