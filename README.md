@@ -33,7 +33,7 @@ The `IndexedValues` constructor extends the `Set` class, but it's a facade with 
 
   * it is not posible to `delete` a single value, or `clear` the instance. `IndexedValues` instances are ever-growing
   * `.toJSON()` method returns an array of values held internally
-  * `.valueOf()` method returns a real `Set` that can resist `postMessage`, or be stored as `IndexedDB`
+  * `.valueOf()` method returns a real `Set` that can resist `postMessage`, or be stored directly as `IndexedDB`
   * `.bindValues(values = [])` returns a `Set` that can contain, add, or remove, any value. Added values will be reflected in the `IndexedValues` instance that created the bound `Set`.
   * `.bindIndexes(indexes = [])` is like `.bindValues()` but uses indexes instead, to initialize the derived `Set`. This is mostly useful for revival.
   * `.mapKeys(entries = [])` returns a `Map` where *keys* are derived from the `IndexedValues`. Added keys that are not known in the `IndexedValues` source, will be automatically added as part of the `Set`. Once serialized as *JSON*, these maps will represent all keys as indexes, because indeed these maps never hold keys as values, these hold keys as indexes.
